@@ -1,6 +1,8 @@
 {
     "name": "ppyd",
     "description": "Pretty API wrapper for pyd",
+    "authors": ["John Colvin"],
+    "license": "BSL-1.0",
     "sourcePaths": ["."],
     "targetType": "sourceLibrary",
 }
