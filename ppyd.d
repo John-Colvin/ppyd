@@ -180,7 +180,13 @@ void registerModuleScopeSymbol(string mem, alias parent)()
 
 void registerAll(alias thisModule)()
 {
-    alias members = Alias!(__traits(allMembers, thisModule));
+    //Horrible hacks because typeinfo init seems be both there and not there, 
+    //depending on when you look
+    import std.algorithm : startsWith, canFind, endsWith;
+    alias membersAll = Alias!(__traits(allMembers, thisModule));
+    enum isNotTypeInfoInit(string a) = !(a.startsWith("_")
+        && a.canFind("TypeInfo") && a.endsWith("__initZ"));
+    alias members = Filter!(isNotTypeInfoInit, membersAll);
     foreach(mem; members)
     {
         static if(mixin(`isCallable!(thisModule.`~mem~')'))
