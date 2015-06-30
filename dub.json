@@ -1,0 +1,6 @@
+{
+    "name": "ppyd",
+    "description": "Pretty API wrapper for pyd",
+    "sourcePaths": ["."],
+    "targetType": "sourceLibrary",
+}
