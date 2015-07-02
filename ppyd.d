@@ -107,7 +107,10 @@ auto registerAggregateType(string aggStr, alias parent)()
     {
         static if(is(attr == pdef!Args, Args...))
         {
-            return wrap_class!(agg, Args, Map!(Symbol!agg, __traits(allMembers, agg)))();
+            enum NotVoid(T) = !is(T == void);
+            return wrap_class!(agg, Args,
+                    Filter!(NotVoid,
+                        Map!(Symbol!agg, __traits(allMembers, agg))))();
             /+
             import std.algorithm, std.string;
             /*pragma(msg, `return wrap_class!(agg, Args, ` ~
