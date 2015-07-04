@@ -4,7 +4,22 @@ import std.typetuple : Arguments = TypeTuple, Map = staticMap, Filter;
 import std.typecons : tuple, Tuple;
 import std.traits;
 
-struct pdef(Args ...){}
+private struct Pdef(Args ...){}
+
+@property auto pdef(Args ...)()
+{
+    return Pdef!Args();
+}
+
+template TryTypeof(TL ...)
+if(TL.length == 1)
+{
+    static if(is(TL[0]))
+        alias TryTypeof = TL[0]; 
+    else static if(is(typeof(TL[0])))
+        alias TryTypeof = typeof(TL[0]);
+    else static assert("Can't get a type out of this");
+}
 
 /*
  * With the builtin alias declaration, you cannot declare
@@ -39,7 +54,7 @@ unittest
 bool containsPdef(attrs...)()
 {
     foreach(attr; attrs)
-        static if(is(attr == pdef!Args, Args...))
+        static if(is(TryTypeof!attr == Pdef!Args, Args...))
         {
             return true;
         }
@@ -56,7 +71,7 @@ private auto registerFunctionImpl(alias define, alias parent, string mem)()
         static if(containsPdef!attrs)
             foreach(attr; attrs)
             {
-                static if(is(attr == pdef!Args, Args...))
+                static if(is(TryTypeof!attr == Pdef!Args, Args...))
                 {
                     return define!(ol, Args)();
                 }
@@ -84,7 +99,7 @@ private auto MemberHelper(alias parent, string mem)()
     alias attrs = Arguments!(__traits(getAttributes, agg));
     foreach(i, attr; attrs)
     {
-        static if(is(attr == pdef!Args, Args...))
+        static if(is(TryTypeof!attr == Pdef!Args, Args...))
         {
             return Member!(mem, Args)();
         }
@@ -105,7 +120,7 @@ auto registerAggregateType(string aggStr, alias parent)()
     alias attrs = Arguments!(__traits(getAttributes, agg));
     foreach(attr; attrs)
     {
-        static if(is(attr == pdef!Args, Args...))
+        static if(is(TryTypeof!attr == Pdef!Args, Args...))
         {
             enum NotVoid(T) = !is(T == void);
             return wrap_class!(agg, Args,
