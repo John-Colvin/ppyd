@@ -181,31 +181,31 @@ void registerModuleScopeSymbol(string mem, alias parent)()
     else pragma(msg, "not registered");
 }
 
-void registerAll(alias thisModule)()
+void registerAll(alias extModule)()
 {
     //Horrible hacks because typeinfo init seems be both there and not there, 
     //depending on when you look
     import std.algorithm : startsWith, canFind, endsWith;
-    alias membersAll = Alias!(__traits(allMembers, thisModule));
+    alias membersAll = Alias!(__traits(allMembers, extModule));
     enum isNotTypeInfoInit(string a) = !(a.startsWith("_")
         && a.canFind("TypeInfo") && a.endsWith("__initZ"));
     alias members = Filter!(isNotTypeInfoInit, membersAll);
     foreach(mem; members)
     {
-        static if(mixin(`isCallable!(thisModule.`~mem~')'))
-            registerFunction!(thisModule, mem)();
+        static if(mixin(`isCallable!(extModule.`~mem~')'))
+            registerFunction!(extModule, mem)();
     }
-    static if(__traits(hasMember, thisModule, "preInit"))
-        preInit();
+    static if(__traits(hasMember, extModule, "preInit"))
+        extModule.preInit();
         
     module_init();
 
     foreach(mem; members)
     {
-        static if(mixin(`!isCallable!(thisModule.`~mem~')'))
-            registerModuleScopeSymbol!(mem, thisModule)();
+        static if(mixin(`!isCallable!(extModule.`~mem~')'))
+            registerModuleScopeSymbol!(mem, extModule)();
     }
 
-    static if(__traits(hasMember, thisModule, "postInit"))
-        postInit();
+    static if(__traits(hasMember, extModule, "postInit"))
+        extModule.postInit();
 }
