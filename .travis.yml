@@ -1,0 +1,9 @@
+os:
+ - linux
+ - osx
+
+language: d
+
+d:
+ - dmd
+ - ldc
