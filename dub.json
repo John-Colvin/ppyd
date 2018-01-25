@@ -4,5 +4,9 @@
     "authors": ["John Colvin"],
     "license": "BSL-1.0",
     "sourcePaths": ["."],
+    "importPaths": ["."],
     "targetType": "sourceLibrary",
+    "dependencies": {
+        "pyd": ">=0.9.3"
+    }
 }
