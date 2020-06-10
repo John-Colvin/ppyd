@@ -1,6 +1,6 @@
 import pyd.pyd;
 
-import std.typetuple : Arguments = TypeTuple, Map = staticMap, Filter;
+import std.meta : AliasSeq, staticMap, Filter, Alias;
 import std.typecons : tuple, Tuple;
 import std.traits;
 
@@ -15,59 +15,31 @@ template TryTypeof(TL ...)
 if(TL.length == 1)
 {
     static if(is(TL[0]))
-        alias TryTypeof = TL[0]; 
+        alias TryTypeof = TL[0];
     else static if(is(typeof(TL[0])))
         alias TryTypeof = typeof(TL[0]);
     else static assert("Can't get a type out of this");
 }
 
-/*
- * With the builtin alias declaration, you cannot declare
- * aliases of, for example, literal values. You can alias anything
- * including literal values via this template.
- */
-// symbols and literal values
-template Alias(alias a)
-{
-    static if (__traits(compiles, { alias x = a; }))
-        alias Alias = a;
-    else static if (__traits(compiles, { enum x = a; }))
-        enum Alias = a;
-    else
-        static assert(0, "Cannot alias " ~ a.stringof);
-}
-// types and tuples
-template Alias(a...)
-{
-    alias Alias = a;
-}
-
-unittest
-{
-    enum abc = 1;
-    static assert(__traits(compiles, { alias a = Alias!(123); }));
-    static assert(__traits(compiles, { alias a = Alias!(abc); }));
-    static assert(__traits(compiles, { alias a = Alias!(int); }));
-    static assert(__traits(compiles, { alias a = Alias!(1,abc,int); }));
-}
-
 bool containsPdef(attrs...)()
 {
-    foreach(attr; attrs)
-        static if(is(TryTypeof!attr == Pdef!Args, Args...))
+    static foreach(attr; attrs)
+        static if(!is(done) && is(TryTypeof!attr == Pdef!Args, Args...))
         {
+            enum done;
             return true;
         }
-    return false;
+    static if (!is(done))
+        return false;
 }
 
 private auto registerFunctionImpl(alias define, alias parent, string mem)()
 {
     //pragma(msg, "callable");
-    alias ols = Arguments!(__traits(getOverloads, parent, mem));
+    alias ols = AliasSeq!(__traits(getOverloads, parent, mem));
     foreach(i, ol; ols)
     {
-        alias attrs = Arguments!(__traits(getAttributes, ol));
+        alias attrs = AliasSeq!(__traits(getAttributes, ol));
         static if(containsPdef!attrs)
             foreach(attr; attrs)
             {
@@ -96,7 +68,7 @@ private auto MemberHelper(alias parent, string mem)()
 {
     alias agg = Alias!(mixin(`parent.`~mem));
 
-    alias attrs = Arguments!(__traits(getAttributes, agg));
+    alias attrs = AliasSeq!(__traits(getAttributes, agg));
     foreach(i, attr; attrs)
     {
         static if(is(TryTypeof!attr == Pdef!Args, Args...))
@@ -117,7 +89,7 @@ auto registerAggregateType(string aggStr, alias parent)()
 {
     alias agg = Alias!(mixin(`parent.`~aggStr));
 
-    alias attrs = Arguments!(__traits(getAttributes, agg));
+    alias attrs = AliasSeq!(__traits(getAttributes, agg));
     foreach(attr; attrs)
     {
         static if(is(TryTypeof!attr == Pdef!Args, Args...))
@@ -125,7 +97,7 @@ auto registerAggregateType(string aggStr, alias parent)()
             enum NotVoid(T) = !is(T == void);
             return wrap_class!(agg, Args,
                     Filter!(NotVoid,
-                        Map!(Symbol!agg, __traits(allMembers, agg))))();
+                        staticMap!(Symbol!agg, __traits(allMembers, agg))))();
             /+
             import std.algorithm, std.string;
             /*pragma(msg, `return wrap_class!(agg, Args, ` ~
@@ -198,29 +170,32 @@ void registerModuleScopeSymbol(string mem, alias parent)()
 
 void registerAll(alias extModule)()
 {
-    //Horrible hacks because typeinfo init seems be both there and not there, 
+    //Horrible hacks because typeinfo init seems be both there and not there,
     //depending on when you look
     import std.algorithm : startsWith, canFind, endsWith;
-    alias membersAll = Alias!(__traits(allMembers, extModule));
+    alias membersAll = __traits(allMembers, extModule);
     enum isNotTypeInfoInit(string a) = !(a.startsWith("_")
         && a.canFind("TypeInfo") && a.endsWith("__initZ"));
     alias members = Filter!(isNotTypeInfoInit, membersAll);
     foreach(mem; members)
     {
-        static if(mixin(`isCallable!(extModule.`~mem~')'))
-            registerFunction!(extModule, mem)();
+        static if (__traits(compiles, __traits(getMember, extModule, mem))
+            && isCallable!(__traits(getMember, extModule, mem)))
+                registerFunction!(extModule, mem)();
     }
     static if(__traits(hasMember, extModule, "preInit"))
         extModule.preInit();
-        
+
     module_init();
 
     foreach(mem; members)
     {
-        static if(mixin(`!isCallable!(extModule.`~mem~')'))
-            registerModuleScopeSymbol!(mem, extModule)();
+        static if (__traits(compiles, __traits(getMember, extModule, mem))
+            && isCallable!(__traits(getMember, extModule, mem)))
+                registerModuleScopeSymbol!(mem, extModule)();
     }
 
     static if(__traits(hasMember, extModule, "postInit"))
         extModule.postInit();
 }
+
